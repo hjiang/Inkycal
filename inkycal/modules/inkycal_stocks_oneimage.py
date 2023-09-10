@@ -139,7 +139,7 @@ class StocksOneImage(inkycal_module):
                 elif stockCurrency == 'EUR':
                     stockCurrency = '€'
             except Exception:
-                stockCurrency = ''
+                stockCurrency = '$'
                 logger.warning(f"Failed to get ticker currency!")
 
             try:
