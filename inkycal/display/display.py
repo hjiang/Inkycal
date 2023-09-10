@@ -172,6 +172,7 @@ class Display:
             print('model_name should be a string')
             return
         else:
+            # TODO(hjiang): unncecessary code here
             driver_files = top_level + '/inkycal/display/drivers/*.py'
             drivers = glob.glob(driver_files)
             drivers = [i.split('/')[-1].split('.')[0] for i in drivers]
