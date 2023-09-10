@@ -249,7 +249,7 @@ class Stocks(inkycal_module):
         # Write/Draw something on the black image
         for _ in range(len(parsed_tickers)):
             if _ + 1 > max_lines:
-                logger.error('Ran out of lines for parsed_ticker_colour')
+                logger.error('Ran out of lines for parsed_tickers')
                 break
             write(im_black, line_positions[_], (line_width, line_height),
                   parsed_tickers[_], font=self.font, alignment='left')
