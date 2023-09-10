@@ -93,7 +93,7 @@ class Inkycal:
 
         else:
             try:
-                with open('/boot/settings.json') as settings_file:
+                with open('./settings.json') as settings_file:
                     settings = json.load(settings_file)
                     self.settings = settings
 
