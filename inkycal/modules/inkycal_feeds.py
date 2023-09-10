@@ -107,14 +107,10 @@ class Feeds(inkycal_module):
         for feeds in self.feed_urls:
             text = feedparser.parse(feeds)
             for posts in text.entries:
-                if "summary" in posts:
-                    summary = posts["summary"]
-                    parsed_feeds.append(f"•{posts.title}: {re.sub('<[^<]+?>', '', posts.summary)}")
-                # if "description" in posts:
+                parsed_feeds.append(f"• {posts.title}")
 
         if parsed_feeds:
-            parsed_feeds = [i.split("\n") for i in parsed_feeds][0]
-            parsed_feeds = [i for i in parsed_feeds if i]
+            parsed_feeds = [i for i in parsed_feeds if i and len(i) > 15]
 
         # Shuffle the list to prevent showing the same content
         if self.shuffle_feeds:
