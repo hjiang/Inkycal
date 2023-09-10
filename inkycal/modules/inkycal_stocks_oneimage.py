@@ -25,6 +25,7 @@ except ImportError:
     print('pip3 install yfinance')
 
 try:
+    import matplotlib as mpl
     import matplotlib.pyplot as plt
     import matplotlib.image as mpimg
 except ImportError:
@@ -33,6 +34,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+mpl.rcParams['axes.linewidth'] = 1
 
 class StocksOneImage(inkycal_module):
     name = "Stocks (One Image) - Displays stock market infos from Yahoo finance"
