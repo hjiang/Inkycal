@@ -1,0 +1,253 @@
+#!python3
+"""
+Stocks Module for Inkycal Project
+
+Version 0.5: Added improved precision by using new priceHint parameter of yfinance
+Version 0.4: Added charts
+Version 0.3: Added support for web-UI of Inkycal 2.0.0
+Version 0.2: Migration to Inkycal 2.0.0
+Version 0.1: Migration to Inkycal 2.0.0b
+
+by https://github.com/worstface
+"""
+import os
+import logging
+
+from inkycal.modules.template import inkycal_module
+from inkycal.custom import write, internet_available
+
+from PIL import Image
+
+try:
+    import yfinance as yf
+except ImportError:
+    print('yfinance is not installed! Please install with:')
+    print('pip3 install yfinance')
+
+try:
+    import matplotlib.pyplot as plt
+    import matplotlib.image as mpimg
+except ImportError:
+    print('matplotlib is not installed! Please install with:')
+    print('pip3 install matplotlib')
+
+logger = logging.getLogger(__name__)
+
+
+class StocksOneImage(inkycal_module):
+    name = "Stocks (One Image) - Displays stock market infos from Yahoo finance"
+
+    # required parameters
+    requires = {
+
+        "tickers": {
+
+            "label": "You can display any information by using "
+                     "the respective symbols that are used by Yahoo! Finance. "
+                     "Separate multiple symbols with a comma sign e.g. "
+                     "TSLA, U, NVDA, EURUSD=X"
+        }
+    }
+
+    def __init__(self, config):
+
+        super().__init__(config)
+
+        config = config['config']
+
+        # If tickers is a string from web-ui, convert to a list, else use
+        # tickers as-is i.e. for tests
+        if config['tickers'] and isinstance(config['tickers'], str):
+            self.tickers = config['tickers'].replace(" ", "").split(',')  # returns list
+        else:
+            self.tickers = config['tickers']
+
+        # give an OK message
+        print(f'{__name__} loaded')
+
+    def generate_image(self):
+        """Generate image for this module"""
+
+        # Define new image size with respect to padding
+        im_width = int(self.width - (2 * self.padding_left))
+        im_height = int(self.height - (2 * self.padding_top))
+        im_size = im_width, im_height
+        logger.info(f'image size: {im_width} x {im_height} px')
+
+        im_black = Image.new('RGB', size=im_size, color='white')
+
+        # Create tmp path
+        tmpPath = '/tmp/inkycal_stocks/'
+
+        try:
+            if not os.path.exists(tmpPath):
+                os.mkdir(tmpPath)
+                print(f"Successfully created tmp directory {tmpPath} ")
+        except OSError:
+            print(f"Creation of tmp directory {tmpPath} failed")
+
+        # Check if internet is available
+        if internet_available() == True:
+            logger.info('Connection test passed')
+        else:
+            raise Exception('Network could not be reached :/')
+
+        # Set some parameters for formatting feeds
+        line_spacing = 1
+        line_height = self.font.getsize('hg')[1] + line_spacing
+        line_width = im_width
+        max_lines = (im_height // (self.font.getsize('hg')[1] + line_spacing))
+
+        logger.debug(f"max_lines: {max_lines}")
+
+        # Calculate padding from top so the lines look centralised
+        spacing_top = int(im_height % line_height / 2)
+
+        # Calculate line_positions
+        line_positions = [
+            (0, spacing_top + _ * line_height) for _ in range(max_lines)]
+
+        logger.debug(f'line positions: {line_positions}')
+
+        parsed_tickers = []
+        chartSpace = Image.new('RGBA', (im_width, im_height), "white")
+
+        tickerCount = range(len(self.tickers))
+
+        for i in tickerCount:
+            ticker = self.tickers[i]
+            logger.info(f'preparing data for {ticker}...')
+
+            yfTicker = yf.Ticker(ticker)
+
+            try:
+                stockInfo = yfTicker.info
+            except Exception as exceptionMessage:
+                logger.warning(f"Failed to get '{ticker}' ticker info: {exceptionMessage}")
+
+            try:
+                stockName = stockInfo['shortName']
+            except Exception:
+                stockName = ticker
+                logger.warning(f"Failed to get '{stockName}' ticker name! Using "
+                               "the ticker symbol as name instead.")
+
+            try:
+                stockCurrency = stockInfo['currency']
+                if stockCurrency == 'USD':
+                    stockCurrency = '$'
+                elif stockCurrency == 'EUR':
+                    stockCurrency = '€'
+            except Exception:
+                stockCurrency = ''
+                logger.warning(f"Failed to get ticker currency!")
+
+            try:
+                precision = stockInfo['priceHint']
+            except Exception:
+                precision = 2
+                logger.warning(f"Failed to get '{stockName}' ticker price hint! Using "
+                               "default precision of 2 instead.")
+
+            stockHistory = yfTicker.history("30d")
+            stockHistoryLen = len(stockHistory)
+            logger.info(f'fetched {stockHistoryLen} datapoints ...')
+            previousQuote = (stockHistory.tail(2)['Close'].iloc[0])
+            currentQuote = (stockHistory.tail(1)['Close'].iloc[0])
+            currentHigh = (stockHistory.tail(1)['High'].iloc[0])
+            currentLow = (stockHistory.tail(1)['Low'].iloc[0])
+            currentOpen = (stockHistory.tail(1)['Open'].iloc[0])
+            currentGain = currentQuote - previousQuote
+            currentGainPercentage = (1 - currentQuote / previousQuote) * -100
+            firstQuote = stockHistory.tail(stockHistoryLen)['Close'].iloc[0]
+            logger.info(f'firstQuote {firstQuote} ...')
+
+            def floatStr(precision, number):
+                return "%0.*f" % (precision, number)
+
+            def percentageStr(number):
+                return '({:+.2f}%)'.format(number)
+
+            def gainStr(precision, number):
+                return "%+.*f" % (precision, number)
+
+            stockNameLine = '{} ({})'.format(stockName, stockCurrency)
+            stockCurrentValueLine = '{} {} {}'.format(
+                floatStr(precision, currentQuote), gainStr(precision, currentGain),
+                percentageStr(currentGainPercentage))
+            stockDayValueLine = '1d OHL: {}/{}/{}'.format(
+                floatStr(precision, currentOpen), floatStr(precision, currentHigh), floatStr(precision, currentLow))
+            maxQuote = max(stockHistory.High)
+            minQuote = min(stockHistory.Low)
+            logger.info(f'high {maxQuote} low {minQuote} ...')
+            stockMonthValueLine = '{}d OHL: {}/{}/{}'.format(
+                stockHistoryLen, floatStr(precision, firstQuote), floatStr(precision, maxQuote),
+                floatStr(precision, minQuote))
+
+            logger.info(stockNameLine)
+            logger.info(stockCurrentValueLine)
+            logger.info(stockDayValueLine)
+            logger.info(stockMonthValueLine)
+
+            parsed_tickers.append({'text': stockNameLine, 'color': '#000000'})
+
+            if currentGain < 0:
+                parsed_tickers.append({'text': stockCurrentValueLine, 'color': '#ff0000'})
+            else:
+                parsed_tickers.append({'text': stockCurrentValueLine, 'color': '#00ff00'})
+            if currentOpen > currentQuote:
+                parsed_tickers.append({'text': stockDayValueLine, 'color': '#ff0000'})
+            else:
+                parsed_tickers.append({'text': stockDayValueLine, 'color': '#00ff00'})
+            if firstQuote > currentQuote:
+                parsed_tickers.append({'text': stockMonthValueLine, 'color': '#ff0000'})
+            else:
+                parsed_tickers.append({'text': stockMonthValueLine, 'color': '#00ff00'})
+
+            if (i < len(tickerCount)):
+                parsed_tickers.append({'text': '', 'color': '#000000'})
+
+            logger.info(f'creating chart data...')
+            chartData = stockHistory.reset_index()
+            chartCloseData = chartData.loc[:, 'Close']
+            chartTimeData = chartData.loc[:, 'Date']
+
+            logger.info(f'creating chart plot...')
+            fig, ax = plt.subplots()  # Create a figure containing a single axes.
+            if firstQuote > currentQuote:
+                ax.plot(chartTimeData, chartCloseData, linewidth=8, color='#ff0000')
+            else:
+                ax.plot(chartTimeData, chartCloseData, linewidth=8, color='#00ff00')
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
+            chartPath = tmpPath + ticker + '.png'
+            logger.info(f'saving chart image to {chartPath}...')
+            plt.savefig(chartPath)
+
+            logger.info(f'chartSpace is...{im_width} {im_height}')
+            logger.info(f'open chart ...{chartPath}')
+            chartImage = Image.open(chartPath)
+            chartImage.thumbnail((im_width / 4, line_height * 4), Image.BICUBIC)
+
+            chartPasteX = im_width - (chartImage.width) - 10
+            chartPasteY = line_height * 5 * i
+            logger.info(f'pasting chart image with index {i} to...{chartPasteX} {chartPasteY}')
+
+            chartSpace.paste(chartImage, (chartPasteX, chartPasteY))
+
+        im_black.paste(chartSpace)
+
+        # Write/Draw something on the black image
+        for i in range(len(parsed_tickers)):
+            if i + 1 > max_lines:
+                logger.error('Ran out of lines for parsed_tickers')
+                break
+            write(im_black, line_positions[i], (line_width, line_height),
+                  parsed_tickers[i]['text'], colour=parsed_tickers[i]['color'],
+                  font=self.font, alignment='left')
+
+        return im_black, im_black
+
+
+if __name__ == '__main__':
+    print('running module in standalone/debug mode')
