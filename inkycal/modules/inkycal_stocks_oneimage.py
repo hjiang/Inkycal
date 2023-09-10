@@ -215,9 +215,9 @@ class StocksOneImage(inkycal_module):
             logger.info(f'creating chart plot...')
             fig, ax = plt.subplots()  # Create a figure containing a single axes.
             if firstQuote > currentQuote:
-                ax.plot(chartTimeData, chartCloseData, linewidth=8, color='#ff0000')
+                ax.plot(chartTimeData, chartCloseData, linewidth=12, color='#ff0000')
             else:
-                ax.plot(chartTimeData, chartCloseData, linewidth=8, color='#00ff00')
+                ax.plot(chartTimeData, chartCloseData, linewidth=12, color='#00ff00')
             ax.set_xticklabels([])
             ax.set_yticklabels([])
             chartPath = tmpPath + ticker + '.png'
