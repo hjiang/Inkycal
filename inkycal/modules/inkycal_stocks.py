@@ -234,7 +234,7 @@ class Stocks(inkycal_module):
             chartImage = Image.open(chartPath)
             chartImage.thumbnail((im_width / 4, line_height * 4), Image.BICUBIC)
 
-            chartPasteX = im_width - (chartImage.width)
+            chartPasteX = im_width - (chartImage.width) - 10
             chartPasteY = line_height * 5 * _
             logger.info(f'pasting chart image with index {_} to...{chartPasteX} {chartPasteY}')
 
